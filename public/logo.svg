@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e94560"/>
+      <stop offset="50%" stop-color="#f54278"/>
+      <stop offset="100%" stop-color="#ff6b9d"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer circle background -->
+  <circle cx="64" cy="64" r="62" fill="url(#bg)" stroke="#e94560" stroke-width="3"/>
+
+  <!-- Subtle ring glow -->
+  <circle cx="64" cy="64" r="58" fill="none" stroke="#e94560" stroke-width="1" opacity="0.4"/>
+
+  <!-- Equalizer bars forming M shape + waveform -->
+  <!-- Bar 1 -->
+  <rect x="24" y="48" width="7" height="12" rx="3.5" fill="url(#wave)" opacity="0.85"/>
+  <!-- Bar 2 -->
+  <rect x="33" y="34" width="7" height="26" rx="3.5" fill="url(#wave)" opacity="0.9"/>
+  <!-- Bar 3 -->
+  <rect x="42" y="22" width="7" height="38" rx="3.5" fill="url(#wave)" opacity="0.95"/>
+  <!-- Bar 4 -->
+  <rect x="51" y="14" width="7" height="46" rx="3.5" fill="url(#wave)"/>
+
+  <!-- Center gap (V-dip forming the M shape) -->
+  <!-- Bar 5 -->
+  <rect x="60" y="32" width="7" height="28" rx="3.5" fill="url(#wave)" opacity="0.9"/>
+  <!-- Bar 6 -->
+  <rect x="69" y="14" width="7" height="46" rx="3.5" fill="url(#wave)"/>
+
+  <!-- Bar 7 -->
+  <rect x="78" y="22" width="7" height="38" rx="3.5" fill="url(#wave)" opacity="0.95"/>
+  <!-- Bar 8 -->
+  <rect x="87" y="34" width="7" height="26" rx="3.5" fill="url(#wave)" opacity="0.9"/>
+  <!-- Bar 9 -->
+  <rect x="96" y="48" width="7" height="12" rx="3.5" fill="url(#wave)" opacity="0.85"/>
+
+  <!-- MONYX text at bottom -->
+  <text x="64" y="104" text-anchor="middle" font-family="'Inter', 'Segoe UI', Arial, sans-serif" font-size="18" font-weight="800" letter-spacing="4" fill="#e94560">MONYX</text>
+
+  <!-- Subtle top highlight -->
+  <ellipse cx="64" cy="18" rx="35" ry="8" fill="#ffffff" opacity="0.04"/>
+</svg>

@@ -1,0 +1,32 @@
+# robots.txt — Monyx Studio
+# All crawlers welcome; the app is fully client-side so all routes serve
+# the same HTML shell.
+
+User-agent: *
+Allow: /
+
+# Block the heavy ONNX model file from being indexed (waste of crawl budget)
+Disallow: /UVR_MDXNET_KARA_2.onnx
+Disallow: /ort-wasm/
+
+# Explicit allowlists for major crawlers (redundant but explicit)
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+# Sitemap
+Sitemap: https://monyx-studio.vercel.app/sitemap.xml

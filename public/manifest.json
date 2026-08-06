@@ -1,0 +1,27 @@
+{
+  "name": "Monyx Studio — AI Music Suite",
+  "short_name": "Monyx Studio",
+  "description": "Free all-in-one AI music studio: vocal remover, karaoke, music editor, virtual instruments, and video maker.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0718",
+  "theme_color": "#0d0718",
+  "categories": ["music", "audio", "productivity", "entertainment"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "features": [
+    "AI Vocal Remover",
+    "Karaoke Studio",
+    "Multitrack Editor",
+    "Virtual Instruments",
+    "Video Maker"
+  ]
+}
