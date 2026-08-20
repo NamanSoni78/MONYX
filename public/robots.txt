@@ -29,4 +29,4 @@ User-agent: Slackbot
 Allow: /
 
 # Sitemap
-Sitemap: https://monyx-studio.vercel.app/sitemap.xml
+Sitemap: https://monyx.namansoni.in/sitemap.xml
