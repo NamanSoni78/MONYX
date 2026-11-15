@@ -21,7 +21,7 @@ import { TrackContent } from '@/components/monyx/TrackContent';
 import { EffectRack } from '@/components/monyx/EffectRack';
 import { ClipActionBar } from '@/components/monyx/ClipActionBar';
 import { PlayheadOverlay } from '@/components/monyx/PlayheadOverlay';
-import { Play, Pause, Plus, Minus, Music, Sliders, Volume2, Save, Loader2, Trash2, Upload, FolderOpen, Heart, ArrowLeft } from 'lucide-react';
+import { Play, Pause, Plus, Minus, Music, Sliders, Volume2, Save, Loader2, Trash2, Upload, FolderOpen, Heart, ArrowLeft, Undo2, Redo2, SkipBack } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const tabs = [
@@ -31,20 +31,23 @@ const tabs = [
   { id: 'Export', icon: Save, label: 'Export' },
 ];
 
+// Linear gain (0..1.5) -> dB display. 1.0 == 0 dB, 0 == -infinity.
+const gainToDb = (v: number) => (v <= 0 ? '-∞ dB' : `${(20 * Math.log10(v)).toFixed(1)} dB`);
+
 interface EditorViewProps {
   projectId?: string | null;
   onExit: () => void;
 }
 
 export function EditorView({ projectId, onExit }: EditorViewProps) {
-  const router = null; // No router — single-page app
-  const engineRef = useRef<AudioEngine>();
+  const engineRef = useRef<AudioEngine | undefined>(undefined);
   const [activeTab, setActiveTab] = useState('Edit');
   const [selectedTrackId, setSelectedTrackId] = useState<string>('');
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportKind, setExportKind] = useState<'wav' | 'mp3'>('mp3');
   const [exportProgress, setExportProgress] = useState(0);
 
   // Project list state (when no projectId provided)
@@ -75,6 +78,10 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
     removeEffect,
     updateEffectParam,
   } = useEditorStore();
+
+  // Derived flags for undo/redo button states
+  const canUndo = useEditorStore((s) => s.history.length > 0);
+  const canRedo = useEditorStore((s) => s.future.length > 0);
 
   useEffect(() => {
     engineRef.current = new AudioEngine();
@@ -201,7 +208,7 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
     };
-  }, [project, update]);
+  }, [project, updateTransient]);
 
   const selectedTrack = useMemo(
     () => project?.tracks.find((t) => t.id === selectedTrackId),
@@ -228,6 +235,7 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
 
   const exportMp3 = async (bitrate: number) => {
     if (!project) return;
+    setExportKind('mp3');
     setIsExporting(true);
     setExportProgress(0);
     try {
@@ -236,6 +244,20 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
       download(mp3, `${project.name}_${bitrate}k.mp3`);
     } catch (e) {
       alert(`MP3 Export Failed: ${e}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportWav = async () => {
+    if (!project) return;
+    setExportKind('wav');
+    setIsExporting(true);
+    try {
+      const wav = await exportProjectWav(project);
+      download(wav, `${project.name}.wav`);
+    } catch (e) {
+      alert(`WAV Export Failed: ${e}`);
     } finally {
       setIsExporting(false);
     }
@@ -334,6 +356,51 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
     }
   };
 
+  const seekTo = (time: number) => {
+    update((next) => { next.timeline.playhead = time; return next; });
+    if (isPlaying && engineRef.current && projectRef.current) {
+      engineRef.current.play(projectRef.current, time);
+    }
+  };
+
+  // Keyboard shortcuts (desktop UX): Space play/pause, Ctrl+Z/Y undo/redo,
+  // Delete removes the selected clip, Home returns to start, Ctrl+/- zooms.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (!projectRef.current) return;
+      const mod = e.ctrlKey || e.metaKey;
+
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault(); // also stops focused buttons from double-activating
+        togglePlay();
+      } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undo();
+      } else if ((mod && e.shiftKey && e.key.toLowerCase() === 'z') || (mod && e.key.toLowerCase() === 'y')) {
+        e.preventDefault();
+        redo();
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedClipId && selectedTrackId) {
+        e.preventDefault();
+        deleteClip(selectedTrackId, selectedClipId);
+        setSelectedClipId(null);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        seekTo(0);
+      } else if (mod && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        updateTransient((p) => { p.timeline.zoom = Math.min(500, p.timeline.zoom * 1.5); return p; });
+      } else if (mod && e.key === '-') {
+        e.preventDefault();
+        updateTransient((p) => { p.timeline.zoom = Math.max(0.5, p.timeline.zoom * 0.5); return p; });
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, isPlaying, selectedClipId, selectedTrackId]);
+
   const createProject = async () => {
     try {
       const proj = createEmptyProject(name.trim() || 'Untitled Project');
@@ -430,6 +497,7 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
                   </button>
                   <button
                     onClick={async () => {
+                      if (!window.confirm(`Delete project "${p.name}"? This cannot be undone.`)) return;
                       await deleteProject(p.id);
                       loadProjectList();
                     }}
@@ -457,14 +525,20 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
         <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
           <div className="bg-[#1a0f2e] p-6 rounded-xl border border-[#2e1d52] w-full max-w-xs text-center">
             <Loader2 className="animate-spin mx-auto mb-4 text-[#7b3fe4]" size={32} />
-            <h3 className="text-lg font-bold mb-2">Exporting MP3...</h3>
-            <div className="w-full bg-[#2e1d52] h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-[#7b3fe4] h-full transition-all duration-300"
-                style={{ width: `${exportProgress * 100}%` }}
-              />
-            </div>
-            <p className="text-xs text-[#bca9dd] mt-2">{Math.round(exportProgress * 100)}%</p>
+            <h3 className="text-lg font-bold mb-2">{exportKind === 'mp3' ? 'Exporting MP3...' : 'Exporting WAV...'}</h3>
+            {exportKind === 'mp3' ? (
+              <>
+                <div className="w-full bg-[#2e1d52] h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-[#7b3fe4] h-full transition-all duration-300"
+                    style={{ width: `${exportProgress * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-[#bca9dd] mt-2">{Math.round(exportProgress * 100)}%</p>
+              </>
+            ) : (
+              <p className="text-xs text-[#bca9dd]">Rendering mix, please wait…</p>
+            )}
           </div>
         </div>
       )}
@@ -479,8 +553,17 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
             <ArrowLeft size={18} />
           </button>
           <button
+            className="w-9 h-9 rounded-full bg-[#2e1d52] hover:bg-[#3f2a66] flex items-center justify-center"
+            title="Back to start (Home)"
+            aria-label="Back to start"
+            onClick={() => seekTo(0)}
+          >
+            <SkipBack size={16} fill="currentColor" />
+          </button>
+          <button
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-[#7b3fe4] shadow-[0_0_15px_rgba(123,63,228,0.5)]' : 'bg-[#2e1d52] hover:bg-[#3f2a66]'}`}
             onClick={togglePlay}
+            title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
             {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
           </button>
@@ -500,22 +583,36 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded bg-[#2e1d52] hover:bg-[#3f2a66]" onClick={undo}>
-            <span className="text-xs font-medium">Undo</span>
+          <button
+            className={`p-2 rounded flex items-center justify-center transition-opacity ${canUndo ? 'bg-[#2e1d52] hover:bg-[#3f2a66]' : 'bg-[#2e1d52] opacity-40 cursor-not-allowed'}`}
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+          >
+            <Undo2 size={14} />
           </button>
-          <button className="p-2 rounded bg-[#2e1d52] hover:bg-[#3f2a66]" onClick={redo}>
-            <span className="text-xs font-medium">Redo</span>
+          <button
+            className={`p-2 rounded flex items-center justify-center transition-opacity ${canRedo ? 'bg-[#2e1d52] hover:bg-[#3f2a66]' : 'bg-[#2e1d52] opacity-40 cursor-not-allowed'}`}
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+            aria-label="Redo"
+          >
+            <Redo2 size={14} />
           </button>
           <div className="h-6 w-px bg-[#3f2a66] mx-1" />
           <button
             className="p-2 rounded bg-[#3a2860] active:bg-[#7b3fe4]"
-            onClick={() => update((p) => { p.timeline.zoom = Math.max(0.5, p.timeline.zoom * 0.5); return p; })}
+            title="Zoom Out (-)"
+            onClick={() => updateTransient((p) => { p.timeline.zoom = Math.max(0.5, p.timeline.zoom * 0.5); return p; })}
           >
             <Minus size={14} />
           </button>
           <button
             className="p-2 rounded bg-[#3a2860] active:bg-[#7b3fe4]"
-            onClick={() => update((p) => { p.timeline.zoom = Math.min(500, p.timeline.zoom * 1.5); return p; })}
+            title="Zoom In (+)"
+            onClick={() => updateTransient((p) => { p.timeline.zoom = Math.min(500, p.timeline.zoom * 1.5); return p; })}
           >
             <Plus size={14} />
           </button>
@@ -533,14 +630,9 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
                   duration={projectDuration}
                   playbackTime={undefined}
                   width={contentWidth}
-                  onSeek={(time) => {
-                    update((next) => { next.timeline.playhead = time; return next; });
-                    if (isPlaying && engineRef.current && projectRef.current) {
-                      engineRef.current.play(projectRef.current, time);
-                    }
-                  }}
+                  onSeek={seekTo}
                 />
-                <PlayheadOverlay timelineZoom={project.timeline.zoom} engineRef={engineRef} />
+                <PlayheadOverlay timelineZoom={project.timeline.zoom} engineRef={engineRef} showTime />
               </div>
             </div>
 
@@ -582,7 +674,7 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
                 onScroll={handleScroll}
               >
                 <div style={{ width: `${contentWidth}px` }} className="pb-20 relative">
-                  <PlayheadOverlay timelineZoom={project.timeline.zoom} engineRef={engineRef} />
+                  <PlayheadOverlay timelineZoom={project.timeline.zoom} engineRef={engineRef} followContainerRef={contentContainerRef} />
                   {project.tracks.map((track) => (
                     <div
                       key={track.id}
@@ -667,7 +759,7 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
                       />
                     </div>
                   </div>
-                  <div className="mt-2 text-[10px] text-[#bca9dd]">{track.volume.toFixed(2)} dB</div>
+                  <div className="mt-2 text-[10px] text-[#bca9dd]">{gainToDb(track.volume)}</div>
                   <button
                     onClick={() => deleteTrack(track.id)}
                     className="mt-3 p-2 bg-red-900/50 hover:bg-red-700 rounded text-red-200"
@@ -677,6 +769,13 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
                   </button>
                 </div>
               ))}
+              <button
+                onClick={() => addTrack()}
+                className="w-24 bg-[#1a0f2e]/50 border border-dashed border-[#3f2a66] rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-[#bca9dd] hover:text-white hover:bg-[#1a0f2e] transition-colors"
+              >
+                <Plus size={18} />
+                <span className="text-[10px] font-medium">Add Track</span>
+              </button>
             </div>
           </div>
         )}
@@ -689,7 +788,7 @@ export function EditorView({ projectId, onExit }: EditorViewProps) {
               <div className="space-y-3">
                 <button
                   className="w-full bg-[#7b3fe4] hover:bg-[#6a35c4] py-3 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2"
-                  onClick={async () => download(await exportProjectWav(project), `${project.name}.wav`)}
+                  onClick={exportWav}
                 >
                   <Music size={16} /> Export as WAV (High Quality)
                 </button>
