@@ -5,9 +5,13 @@ import { useEffect, useRef } from 'react';
 interface Props {
   timelineZoom: number;
   engineRef: React.MutableRefObject<any>;
+  // When provided, the container auto-scrolls to keep the playhead in view during playback.
+  followContainerRef?: React.MutableRefObject<HTMLDivElement | null>;
+  // Renders a live time readout (e.g. in the ruler strip).
+  showTime?: boolean;
 }
 
-export function PlayheadOverlay({ timelineZoom, engineRef }: Props) {
+export function PlayheadOverlay({ timelineZoom, engineRef, followContainerRef, showTime }: Props) {
   const lineRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
 
@@ -21,6 +25,17 @@ export function PlayheadOverlay({ timelineZoom, engineRef }: Props) {
 
               lineRef.current.style.transform = `translateX(${pos}px)`;
 
+              // Auto-follow: only while actually playing, so manual scrolling
+              // and pinch-zoom are never fought by this loop.
+              const container = followContainerRef?.current;
+              if (engineRef.current.isPlaying && container) {
+                  const viewLeft = container.scrollLeft;
+                  const viewWidth = container.clientWidth;
+                  if (pos < viewLeft || pos > viewLeft + viewWidth * 0.9) {
+                      container.scrollLeft = Math.max(0, pos - viewWidth * 0.15);
+                  }
+              }
+
               if (timeRef.current) {
                   const m = Math.floor(time / 60);
                   const s = Math.floor(time % 60);
@@ -33,7 +48,7 @@ export function PlayheadOverlay({ timelineZoom, engineRef }: Props) {
 
       frameId = requestAnimationFrame(loop);
       return () => cancelAnimationFrame(frameId);
-  }, [timelineZoom, engineRef]);
+  }, [timelineZoom, engineRef, followContainerRef]);
 
   return (
     <>
@@ -44,7 +59,12 @@ export function PlayheadOverlay({ timelineZoom, engineRef }: Props) {
         >
             <div className="absolute -top-1 -left-1.5 w-3 h-3 bg-fuchsia-400 rounded-full" />
         </div>
-        {/* Hidden element to broadcast time if needed, or we can use context */}
+        {showTime && (
+            <div
+                ref={timeRef}
+                className="absolute top-1 right-2 z-40 px-2 py-0.5 rounded bg-[#1a0f2e]/90 border border-[#2e1d52] text-[10px] font-mono text-fuchsia-300 pointer-events-none"
+            />
+        )}
     </>
   );
 }
