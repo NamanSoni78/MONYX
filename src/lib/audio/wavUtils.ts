@@ -224,22 +224,3 @@ export function mixAudio(a: Float32Array, b: Float32Array): Float32Array {
   }
   return result;
 }
-
-// Find the time offset (delay) between a reference signal and a recorded signal
-// using cross-correlation. Returns delay in samples.
-export function findDelay(reference: Float32Array, recorded: Float32Array, maxDelaySamples: number = 44100): number {
-  const len = Math.min(reference.length, recorded.length);
-  let bestDelay = 0;
-  let bestCorr = -Infinity;
-  for (let d = 0; d < maxDelaySamples; d++) {
-    let corr = 0;
-    for (let i = d; i < len; i++) {
-      corr += reference[i - d] * recorded[i];
-    }
-    if (corr > bestCorr) {
-      bestCorr = corr;
-      bestDelay = d;
-    }
-  }
-  return bestDelay;
-}

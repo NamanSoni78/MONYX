@@ -452,7 +452,7 @@ export function KaraokeStudio({ onExit }: { onExit: () => void }) {
           autoGainControl: false,
           channelCount: 1,
           // Chromium-specific advanced constraints
-          ...(typeof chrome !== 'undefined' ? {
+          ...(typeof (globalThis as any).chrome !== 'undefined' ? {
             googEchoCancellation: true,
             googExperimentalEchoCancellation: true,
             googNoiseSuppression: true,

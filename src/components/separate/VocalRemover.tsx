@@ -312,7 +312,7 @@ function audioBufferFromDecoded(decoded: DecodedAudio): AudioBuffer {
   const ctx = new AudioContextClass();
   const buf = ctx.createBuffer(decoded.channels, decoded.length, decoded.sampleRate);
   for (let c = 0; c < decoded.channels; c++) {
-    buf.copyToChannel(decoded.data[c], c);
+    buf.copyToChannel(decoded.data[c] as Float32Array<ArrayBuffer>, c);
   }
   return buf;
 }

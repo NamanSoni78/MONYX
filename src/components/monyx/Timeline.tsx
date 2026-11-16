@@ -33,7 +33,7 @@ export function Timeline({ project, duration, playbackTime, onSeek, width }: Pro
       }
   }
 
-  const ticks = [];
+  const ticks: number[] = [];
   for (let t = 0; t <= duration; t += interval) {
       ticks.push(t);
   }
