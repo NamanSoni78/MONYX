@@ -142,7 +142,7 @@ export async function separateByONNX(
 
   for (let start = 0; start < totalSamples; start += framesPerChunk * hopSize) {
     const chunkLen = Math.min(chunkSamples, totalSamples - start);
-    const numFrames = Math.min(framesPerChunk, Math.floor((chunkLen - fftSize) / hopSize) + 1);
+    const numFrames = Math.min(framesPerChunk, Math.max(1, Math.floor((chunkLen - fftSize) / hopSize) + 1));
     if (numFrames < 1) break;
 
     // Extract chunk (clear and fill)
@@ -317,8 +317,8 @@ function computeSTFT(
     // FFT (fftSize is power of 2, no padding needed)
     const spectrum = fft(frame);
     for (let f = 0; f < freqBins; f++) {
-      real[f * framesPerChunk + t] = spectrum[f][0];
-      imag[f * framesPerChunk + t] = spectrum[f][1];
+      real[f * framesPerChunk + t] = spectrum.re[f];
+      imag[f * framesPerChunk + t] = spectrum.im[f];
     }
   }
 
@@ -438,7 +438,7 @@ function hannWindowPeriodic(size: number): Float32Array {
 }
 
 // FFT — Radix-2 (input must be power of 2)
-function fft(input: Float32Array): Float32Array[][] {
+function fft(input: Float32Array): { re: Float32Array; im: Float32Array } {
   const n = input.length;
   if ((n & (n - 1)) !== 0) {
     throw new Error('FFT input must be power of 2');
@@ -478,11 +478,7 @@ function fft(input: Float32Array): Float32Array[][] {
       }
     }
   }
-  const result: Float32Array[][] = [];
-  for (let i = 0; i <= n / 2; i++) {
-    result.push(new Float32Array([re[i], im[i]]));
-  }
-  return result;
+  return { re: re.slice(0, n / 2 + 1), im: im.slice(0, n / 2 + 1) };
 }
 
 function ifftInPlace(re: Float32Array, im: Float32Array) {

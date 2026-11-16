@@ -552,7 +552,14 @@ export async function exportProjectWav(project: ProjectData): Promise<Blob> {
   const ctx = new OfflineAudioContext(2, Math.ceil(project.sampleRate * duration), project.sampleRate);
 
   const engine = new AudioEngine();
-  await (engine as any).renderProjectToContext(ctx, project, ctx.destination, 0, false);
+  try {
+    await engine.renderProjectToContext(ctx, project, ctx.destination, 0, false);
+  } finally {
+    // Release the realtime AudioContext created only for this export;
+    // browsers cap concurrent AudioContexts, so leaking one per export
+    // would eventually break playback until the tab is reloaded.
+    engine.context?.close();
+  }
 
   const rendered = await ctx.startRendering();
   return audioBufferToWavBlob(rendered);

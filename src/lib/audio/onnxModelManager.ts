@@ -37,7 +37,7 @@ ort.env.wasm.proxy = true;
 // The single model kind we support. Kept as a literal type so the rest of
 // the codebase (vocalSeparator.ts) can branch on it without needing the
 // full ModelKind union that existed before.
-export type ModelKind = 'mdxnet';
+export type ModelKind = 'mdxnet' | 'kimvocal2' | 'mdx23c';
 
 export interface SeparationModel {
   id: string;
@@ -168,8 +168,8 @@ async function storeBundledModel(buffer: ArrayBuffer): Promise<SeparationModel> 
 export interface InferenceSession {
   session: ort.InferenceSession;
   kind: ModelKind;
-  inputNames: string[];
-  outputNames: string[];
+  inputNames: readonly string[];
+  outputNames: readonly string[];
 }
 
 let activeSession: InferenceSession | null = null;
@@ -201,7 +201,7 @@ export async function createInferenceSession(modelData: ArrayBuffer, kind: Model
         outputNames: session.outputNames,
       };
       console.info(`[ONNX] Session created. Providers: ${eps.join(', ')}. Inputs: ${session.inputNames}, Outputs: ${session.outputNames}`);
-      return activeSession;
+      return activeSession!;
     } catch (e) {
       lastError = e;
       console.warn(`[ONNX] Session creation failed with [${eps.join(', ')}]:`, e);
@@ -222,7 +222,7 @@ export async function closeSession(): Promise<void> {
 }
 
 export async function runInference(
-  inputs: Record<string, ort.TypedTensor>
+  inputs: Record<string, ort.Tensor>
 ): Promise<ort.OnnxValue[]> {
   if (!activeSession) throw new Error('No active inference session');
   const results = await activeSession.session.run(inputs);

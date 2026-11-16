@@ -37,7 +37,7 @@
 
 - 💾 **Export & Project Management**
   - Export custom tracks and master mixes to high-quality **MP3** or **WAV** format.
-  - Persistent local project storage using IndexedDB (`idb-keyval`) and SQLite with Prisma.
+  - Persistent local project storage using IndexedDB (`idb-keyval`).
 
 ---
 
@@ -49,7 +49,7 @@
 - **Audio Engine:** Web Audio API, Custom WAV & MP3 Processing (`lamejs`)
 - **AI / Stem Separation:** ONNX Runtime Web (`onnxruntime-web`), MDX-Net KARA 2 Model
 - **State Management:** Zustand
-- **Database & Persistence:** Prisma ORM, SQLite, IndexedDB (`idb-keyval`)
+- **Persistence:** IndexedDB (`idb-keyval`)
 - **Exporting Tools:** JSZip, Custom Video/Audio Canvas & Web Audio Recorders
 
 ---
@@ -58,15 +58,15 @@
 
 ### Prerequisites
 
-- **Node.js**: v18.x or higher
-- **npm** or **pnpm** or **yarn**
+- **Node.js**: v20.9 or higher (required by Next.js 16)
+- **npm**
 
 ### Installation
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/namansoni/monyx-studio.git
-   cd monyx-studio
+   git clone https://github.com/NamanSoni78/MONYX.git
+   cd MONYX
    ```
 
 2. **Install dependencies:**
@@ -74,20 +74,7 @@
    npm install
    ```
 
-3. **Set up Environment Variables:**
-   Create a `.env` file in the root directory:
-   ```env
-   DATABASE_URL="file:./dev.db"
-   ```
-
-4. **Initialize Database:**
-   Generate the Prisma client and push the schema to SQLite:
-   ```bash
-   npm run db:generate
-   npm run db:push
-   ```
-
-5. **Start Development Server:**
+3. **Start Development Server:**
    ```bash
    npm run dev
    ```
@@ -104,10 +91,8 @@
 | `npm run build` | Builds the production bundle |
 | `npm run start` | Starts the production server |
 | `npm run lint` | Runs ESLint checks across the codebase |
-| `npm run db:push` | Pushes Prisma schema changes directly to SQLite |
-| `npm run db:generate` | Generates Prisma client artifacts |
-| `npm run db:migrate` | Runs database migrations |
-| `npm run db:reset` | Resets database schema and data |
+
+> No environment variables are required — all processing happens client-side in your browser.
 
 ---
 
